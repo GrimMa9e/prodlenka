@@ -35,43 +35,6 @@ When aborting, explain what is missing and request a complete test case.
 
 Use Playwright MCP to execute test cases and collect element locators for VIVIDUS story generation in Step 4.
 
-### Prerequisites: Playwright MCP Browser Setup
-
-Chrome may show a **"Change your password"** security popup after logging in with credentials known to be in a data breach (e.g. well-known demo app credentials). This is a browser-level Chrome overlay that **cannot be dismissed via Playwright** and will block all subsequent interactions.
-
-**Fix**: Configure Playwright MCP to use an isolated, in-memory browser profile with password manager features disabled. Add/update `playwright-mcp.config.json` in the project root:
-
-```json
-{
-  "browser": {
-    "isolated": true,
-    "launchOptions": {
-      "args": [
-        "--disable-features=PasswordLeakDetection,SafeBrowsingEnhancedProtection",
-        "--password-store=basic"
-      ]
-    }
-  }
-}
-```
-
-Then point `.vscode/mcp.json` to this config file:
-
-```json
-"playwright": {
-  "command": "npx",
-  "args": [
-    "@playwright/mcp@latest",
-    "--config",
-    "/absolute/path/to/project/playwright-mcp.config.json"
-  ]
-}
-```
-
-After updating, **restart the Playwright MCP server** in VS Code before executing test steps.
-
-> `isolated: true` starts each session with a fresh in-memory Chrome profile — no saved passwords, no security popups.
-
 ### Execution process
 
 1. **Navigate**: `browser_navigate(url)` - URL from test case or user prompt
