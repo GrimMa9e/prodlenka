@@ -156,31 +156,6 @@ Then text `My Account` exists
 When I wait until element located by `caseInsensitiveText(My Account)` appears
 ```
 
-### Use Visual Testing for Multiple Element Verification
-
-**MANDATORY RULE**: When verifying 3 or more elements on a page (text labels, buttons, fields, etc.), you **MUST** use visual baseline testing instead of individual element checks.
-
-**Why**: Visual testing is more efficient, catches unexpected UI changes, and verifies element states (enabled/disabled, selected, etc.) that individual text checks cannot capture.
-
-❌ **Bad** - verifying each element individually:
-```gherkin
-Then text `Back to Home` exists
-Then text `Add Account` exists
-Then number of elements found by `xpath(//input[@placeholder='Name'])` is equal to `1`
-Then text `Upload logo` exists
-Then number of elements found by `buttonName(Save)` is equal to `1`
-```
-
-✅ **Good** - visual baseline captures entire page state:
-```gherkin
-When I establish baseline with name `my-add-account-page`
-```
-
-**When to use visual testing**:
-- ✅ Verifying page layout, structure, elements and their states (3+ elements)
-- ❌ Single element verification after an action
-- ❌ Dynamic content that changes frequently
-
 ### Prefer buttonName Locator for Buttons
 
 When interacting with button HTML elements, use `buttonName` locator instead of xpath.
@@ -272,6 +247,12 @@ Meta:
     @feature [Feature]
     @priority [0|1|2|3|4]
 
+Lifecycle:
+Before:
+Scope: STORY
+|variable1 |variable2 |
+|value1    |value2    |
+
 Scenario: [Descriptive scenario name]
 [Steps using ONLY available VIVIDUS syntax]
 
@@ -300,6 +281,10 @@ When I wait until element located by `caseInsensitiveText(Success)` appears in `
 - One test case typically maps to one scenario
 - Use Examples tables to consolidate similar test cases with different data
 - Split complex test cases into multiple focused scenarios if needed
+
+**Variables:**
+- Do not hardcode values that can be parameterized (e.g., usernames, product names, etc.)
+- Use variables defined in the Lifecycle section or Examples tables
 
 #### File 2: Summary Report
 **Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/summary.md`
