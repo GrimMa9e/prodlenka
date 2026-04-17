@@ -131,6 +131,7 @@ In summary report for each test case step, assess coverage status and notes:
 3. **Data Tables:** Use Examples blocks for parameterized scenarios
 4. **Composite Steps:** Reuse existing composite steps; propose new ones for repeated patterns
 5. **Contextual Steps:** When using parent element context, ensure child locators are relative
+6. **No Hardcoded Values:** Do NOT hardcode sensitive or environment-specific values (credentials, URLs, API keys, etc.) directly in story steps. Use variables from properties files instead. If properties are not available, use placeholder variables and document them.
 
 ### Locator Stability Hierarchy
 When identifying elements, you **MUST** prefer locators in this order:
@@ -140,6 +141,35 @@ When identifying elements, you **MUST** prefer locators in this order:
 3.  🥉 **Medium**: `buttonName()` or `linkText()` (Semantic and readable)
 4.  ⚠️ **Low**: `caseInsensitiveText()` or `formName/fieldName` (Use with caution for localization)
 5.  ⛔ **Last Resort**: `cssSelector` or `xpath` (Only if NO other option exists. XPath must be robust, avoiding indexing like `div[3]/span[2]`)
+
+### Selecting a Specific Element (e.g., the First One)
+
+**Avoid selecting elements by index** unless absolutely necessary and there is no other way to select the element. First, try to find a more specific locator that uniquely identifies the element. Only if that is not possible, use index-based selection with the appropriate approach depending on the locator type:
+
+- **For XPath locators**: Use native XPath indexing to select a specific element by position.
+- **For other locator types** (`cssSelector`, `buttonName`, `caseInsensitiveText`, etc.): Use the `->filter.index(N)` expression appended to the locator.
+- **Avoid combining XPath with `->filter.index()`**
+
+**Index is 1-based** — position `1` or `->filter.index(1)` selects the first element, `2` / `->filter.index(2)` selects the second, etc.
+
+✅ **Good** - XPath with native positional indexing:
+```gherkin
+When I save text of element located by `xpath((//div[@data-test='inventory-item-name'])[1])` to story variable `productName`
+When I save text of element located by `xpath((//div[@data-test='inventory-item-price'])[1])` to story variable `productPrice`
+When I click on element located by `xpath((//a[contains(@data-test, 'title-link')])[1])`
+```
+
+✅ **Good** - non-XPath locators with `->filter.index()`:
+```gherkin
+When I click on element located by `cssSelector(.inventory_item)->filter.index(1)`
+When I click on element located by `buttonName(Add to cart)->filter.index(2)`
+```
+
+❌ **Bad** - combining XPath with `->filter.index()` (inefficient):
+```gherkin
+When I save text of element located by `xpath(//div[@data-test='inventory-item-name'])->filter.index(1)` to story variable `productName`
+When I click on element located by `xpath(//a[contains(@data-test, 'title-link')])->filter.index(1)`
+```
 
 ### Avoid Redundant Verifications
 
@@ -155,31 +185,6 @@ Then text `My Account` exists
 ```gherkin
 When I wait until element located by `caseInsensitiveText(My Account)` appears
 ```
-
-### Use Visual Testing for Multiple Element Verification
-
-**MANDATORY RULE**: When verifying 3 or more elements on a page (text labels, buttons, fields, etc.), you **MUST** use visual baseline testing instead of individual element checks.
-
-**Why**: Visual testing is more efficient, catches unexpected UI changes, and verifies element states (enabled/disabled, selected, etc.) that individual text checks cannot capture.
-
-❌ **Bad** - verifying each element individually:
-```gherkin
-Then text `Back to Home` exists
-Then text `Add Account` exists
-Then number of elements found by `xpath(//input[@placeholder='Name'])` is equal to `1`
-Then text `Upload logo` exists
-Then number of elements found by `buttonName(Save)` is equal to `1`
-```
-
-✅ **Good** - visual baseline captures entire page state:
-```gherkin
-When I establish baseline with name `my-add-account-page`
-```
-
-**When to use visual testing**:
-- ✅ Verifying page layout, structure, elements and their states (3+ elements)
-- ❌ Single element verification after an action
-- ❌ Dynamic content that changes frequently
 
 ### Prefer buttonName Locator for Buttons
 
@@ -239,13 +244,34 @@ When I enter `${campaignName}` in field located by `xpath(//input[@placeholder='
 - ❌ Before every field on the same page (only first element needed)
 - ❌ Between consecutive actions on already-loaded elements
 
+### Verify Page URL After Navigation
+
+When a test case requires verifying that a navigation action landed on the correct page, **prefer URL validation** using the `${current-page-url}` dynamic variable.
+
+**Priority order for page verification:**
+1. **URL validation using `${current-page-url}`** — preferred, deterministic, does not depend on UI rendering
+2. **Unique element verification** — only if URL validation is not possible or insufficient (e.g., single-page apps where URL doesn't change)
+
+✅ **Good** - verify URL contains expected path segment:
+```gherkin
+When I click on element located by `caseInsensitiveText(Back to Products)`
+Then `${current-page-url}` matches `.*/inventory\.html.*`
+```
+
+❌ **Bad** - verifying page only by element when URL check would suffice:
+```gherkin
+When I click on element located by `caseInsensitiveText(Back to Products)`
+!-- URL check would be more reliable here
+Then text `Products` exists
+```
+
 ## Step 5: Generate VIVIDUS story & Summary report
 
 ### Output Folder Structure
 Create a new folder for each test case in project root for user review:
 
 ```
-src/main/resources/story/generated/TC-XXXXX-[TestName]/
+src/main/resources/story/web_app/
 ├── [TestName].story          # VIVIDUS story file
 ├── test-data/                # Generated test data (images, files, etc.)
 │   └── [any required files]
@@ -263,7 +289,7 @@ User will review and move story files to appropriate place after approval.
 ### Output Files
 
 #### File 1: VIVIDUS Story
-**Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/[TestName].story`
+**Location**: `src/main/resources/story/web_app/[TestName].story`
 
 ```gherkin
 Meta:
@@ -280,6 +306,9 @@ Scenario: [Descriptive scenario name]
 ```
 
 **Meta Tag Guidelines:**
+
+Use the `Meta:` block **only at the story level** (before the first scenario), not within individual scenarios.
+
 | Tag | Values | Description |
 |-----|--------|-------------|
 | `@testCaseId` | `TC-XXXXX` | Exact TestRail/Jira ID (e.g., `TC-12345`) |
@@ -297,12 +326,12 @@ When I wait until element located by `caseInsensitiveText(Success)` appears in `
 ```
 
 **Scenario Mapping:**
-- One test case typically maps to one scenario
+- Split test cases into **separate scenarios by logical action** (e.g., login, verify inventory page, verify product details, return to inventory)
 - Use Examples tables to consolidate similar test cases with different data
-- Split complex test cases into multiple focused scenarios if needed
+- **No duplicate scenarios** — each scenario must be unique and included only once per story. Do not repeat the same logical flow in multiple scenarios
 
 #### File 2: Summary Report
-**Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/summary.md`
+**Location**: `src/main/resources/story/web_app/[TestName] summary.md`
 
 Summary report structure
 
@@ -359,7 +388,7 @@ List any actions that cannot be automated with available steps:
 ```
 
 #### File 3: Test Data (if needed)
-**Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/test-data/`
+**Location**: `src/main/resources/story/web_app/test-data/`
 - Upload images, JSON files, or any test data generated during exploration
 - Reference in story using relative path: `test-data/[filename]`
 
