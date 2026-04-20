@@ -128,9 +128,10 @@ In summary report for each test case step, assess coverage status and notes:
 
 1. **Step Syntax:** Use exact step syntax from VIVIDUS definitions or composite steps
 2. **Locators:** Follow the **Strict Hierarchy** below to ensure stability.
-3. **Data Tables:** Use Examples blocks for parameterized scenarios
+3. **Data Tables:** Use Examples ONLY when multiple data sets (3+ rows) exist. For single test case, use inline values.
 4. **Composite Steps:** Reuse existing composite steps; propose new ones for repeated patterns
 5. **Contextual Steps:** When using parent element context, ensure child locators are relative
+6. **No Hardcoded Values:** Do NOT hardcode credentials or URLs. Use variables like `${vividus.web.url}`.
 
 ### Locator Stability Hierarchy
 When identifying elements, you **MUST** prefer locators in this order:
@@ -242,17 +243,15 @@ When I enter `${campaignName}` in field located by `xpath(//input[@placeholder='
 ## Step 5: Generate VIVIDUS story & Summary report
 
 ### Output Folder Structure
-Create a new folder for each test case in project root for user review:
+Place all generated files directly in the web_app story folder (no subfolders):
 
 ```
-src/main/resources/story/generated/TC-XXXXX-[TestName]/
+src/main/resources/story/web_app/
 ├── [TestName].story          # VIVIDUS story file
 ├── test-data/                # Generated test data (images, files, etc.)
 │   └── [any required files]
 └── summary.md                # Coverage report and findings
 ```
-
-User will review and move story files to appropriate place after approval.
 
 **DO NOT create:**
 - Quick start guides
@@ -263,7 +262,7 @@ User will review and move story files to appropriate place after approval.
 ### Output Files
 
 #### File 1: VIVIDUS Story
-**Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/[TestName].story`
+**Location**: `src/main/resources/story/web_app/[TestName].story`
 
 ```gherkin
 Meta:
@@ -302,7 +301,7 @@ When I wait until element located by `caseInsensitiveText(Success)` appears in `
 - Split complex test cases into multiple focused scenarios if needed
 
 #### File 2: Summary Report
-**Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/summary.md`
+**Location**: `src/main/resources/story/web_app/summary.md`
 
 Summary report structure
 
@@ -359,7 +358,7 @@ List any actions that cannot be automated with available steps:
 ```
 
 #### File 3: Test Data (if needed)
-**Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/test-data/`
+**Location**: `src/main/resources/story/web_app/test-data/`
 - Upload images, JSON files, or any test data generated during exploration
 - Reference in story using relative path: `test-data/[filename]`
 
