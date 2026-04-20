@@ -48,6 +48,12 @@ Use Playwright MCP to execute test cases and collect element locators for VIVIDU
 
 3. **Dynamic content**: `browser_wait_for(text)` for async operations
 
+## Data Handling Policy:
+
+1. No Hardcoding: Hardcoding environment-specific data (URLs, credentials, test data) in .story files is strictly prohibited.
+2. Variable Usage: Use ${variableName} syntax for all dynamic data.
+3. Property Definition: Any new variable must be documented as a requirement for overriding.properties or vividus.properties.
+
 ### Assumption Handling
 
 When encountering unclear steps in test cases, or when blocked the agent should:
@@ -139,7 +145,7 @@ When identifying elements, you **MUST** prefer locators in this order:
 2.  🥈 **High**: `id` (ONLY if it looks human-readable and stable, e.g., `#submit-btn`. REJECT auto-generated IDs like `#ember123`)
 3.  🥉 **Medium**: `buttonName()` or `linkText()` (Semantic and readable)
 4.  ⚠️ **Low**: `caseInsensitiveText()` or `formName/fieldName` (Use with caution for localization)
-5.  ⛔ **Last Resort**: `cssSelector` or `xpath` (Only if NO other option exists. XPath must be robust, avoiding indexing like `div[3]/span[2]`)
+5.  ⛔ **Last Resort**: `cssSelector` or `xpath` (Only if NO other option exists. XPath must must be robust — avoid positional indexing like `div[3]/span[2]`, prefer attribute predicates like `//button[@data-test='submit']`. CssSelector must be stable structural selectors like `.form__submit` or `input[type='email']` — avoid fragile positional or generated class selectors)
 
 ### Avoid Redundant Verifications
 
@@ -155,31 +161,6 @@ Then text `My Account` exists
 ```gherkin
 When I wait until element located by `caseInsensitiveText(My Account)` appears
 ```
-
-### Use Visual Testing for Multiple Element Verification
-
-**MANDATORY RULE**: When verifying 3 or more elements on a page (text labels, buttons, fields, etc.), you **MUST** use visual baseline testing instead of individual element checks.
-
-**Why**: Visual testing is more efficient, catches unexpected UI changes, and verifies element states (enabled/disabled, selected, etc.) that individual text checks cannot capture.
-
-❌ **Bad** - verifying each element individually:
-```gherkin
-Then text `Back to Home` exists
-Then text `Add Account` exists
-Then number of elements found by `xpath(//input[@placeholder='Name'])` is equal to `1`
-Then text `Upload logo` exists
-Then number of elements found by `buttonName(Save)` is equal to `1`
-```
-
-✅ **Good** - visual baseline captures entire page state:
-```gherkin
-When I establish baseline with name `my-add-account-page`
-```
-
-**When to use visual testing**:
-- ✅ Verifying page layout, structure, elements and their states (3+ elements)
-- ❌ Single element verification after an action
-- ❌ Dynamic content that changes frequently
 
 ### Prefer buttonName Locator for Buttons
 
@@ -242,10 +223,8 @@ When I enter `${campaignName}` in field located by `xpath(//input[@placeholder='
 ## Step 5: Generate VIVIDUS story & Summary report
 
 ### Output Folder Structure
-Create a new folder for each test case in project root for user review:
 
-```
-src/main/resources/story/generated/TC-XXXXX-[TestName]/
+**Location**: `src/main/resources/story/web_app/[TestName].story`
 ├── [TestName].story          # VIVIDUS story file
 ├── test-data/                # Generated test data (images, files, etc.)
 │   └── [any required files]
@@ -302,7 +281,7 @@ When I wait until element located by `caseInsensitiveText(Success)` appears in `
 - Split complex test cases into multiple focused scenarios if needed
 
 #### File 2: Summary Report
-**Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/summary.md`
+**Location**: `src/main/resources/story/web_app/test-data/`
 
 Summary report structure
 
@@ -359,7 +338,7 @@ List any actions that cannot be automated with available steps:
 ```
 
 #### File 3: Test Data (if needed)
-**Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/test-data/`
+**Location**: `src/main/resources/story/web_app/test-data/`
 - Upload images, JSON files, or any test data generated during exploration
 - Reference in story using relative path: `test-data/[filename]`
 
