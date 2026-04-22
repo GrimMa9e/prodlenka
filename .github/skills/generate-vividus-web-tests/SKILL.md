@@ -10,7 +10,7 @@ argument-hint: 'Enter your test case...'
 2. **Execute** test cases with Playwright
 3. **Analyze** test case coverage
 4. **Explore** VIVIDUS story writing guidelines
-5. **Generate** VIVIDUS stories & Summary report
+5. **Generate** VIVIDUS stories
 
 ---
 
@@ -35,6 +35,40 @@ When aborting, explain what is missing and request a complete test case.
 
 Use Playwright MCP to execute test cases and collect element locators for VIVIDUS story generation in Step 4.
 
+## No-Playwright = User Decision Policy
+
+If Playwright execution is unavailable (browser backend closed, MCP disconnected, navigation failed), the skill must not claim live validation or silently use inferred locators.
+
+### Required Behavior
+
+Inform the user that live UI discovery and validation cannot be performed, then offer:
+1. **Retry later** after Playwright/MCP is restored (**recommended**)
+2. **Continue with known locators** marked as **unverified**
+
+### If Continuing with Known Locators
+
+Include for all reused locators:
+- **Status:** Unverified
+- **Last generated/validated:** YYYY-MM-DD
+- **Risk:** UI may have changed
+
+### Forbidden
+- Claiming locators are current or verified
+- Hiding Playwright unavailability
+- Presenting guesses as confirmed
+
+### Required Message Template
+
+Playwright execution is currently unavailable, so I cannot validate the current UI or discover fresh locators.
+
+Choose an option:
+1. Retry after Playwright/MCP is restored
+2. Continue using known locators (**unverified**)
+
+Known locators metadata:
+- Last generated/validated: YYYY-MM-DD
+- Risk: UI may have changed
+
 ### Execution process
 
 1. **Navigate**: `browser_navigate(url)` - URL from test case or user prompt
@@ -53,7 +87,6 @@ Use Playwright MCP to execute test cases and collect element locators for VIVIDU
 When encountering unclear steps in test cases, or when blocked the agent should:
 1. Proceed with reasonable assumption or workaround
 2. Document assumption or workaround clearly
-3. Flag for user validation in summary report
 
 Example assumptions:
 | Situation | Assumption Made |Marked As |
@@ -103,25 +136,6 @@ VIVIDUS capabilities and project discovery:
 3. **Use exact locator strategies**: `cssSelector`, `xpath`, `id`, `caseInsensitiveText`, `name`
 4. **If a required step is NOT available** - DO NOT silently ignore, mark as `[MISSING STEP]`
 
-### Coverage Mapping
-
-In summary report for each test case step, assess coverage status and notes:
-
-| TC Step | Action | Status | Notes |
-|---------|--------|--------|-------|
-| 1 | Log in as Global Admin | ✅ Covered | Requires navigation + cookie/auth handling |
-| 2 | Navigate to Companies page | ✅ Covered | Click + wait for page load |
-| 3 | Verify tooltip on hover | ⚠️ Gap | No tooltip verification step in VIVIDUS |
-| 4 | Drag item to new position | ✅ Covered | Single drag-and-drop step available |
-| 5 | Verify sorting order | 🔵 Assumed | Unclear if alphabetical or by date |
-| 6 | Check error message style | ❌ Discrepancy | Expected red text, actual is orange |
-
-### Coverage Status Legend
-- ✅ **Covered** - Can be implemented with available VIVIDUS steps
-- ⚠️ **Gap** - No VIVIDUS step available, manual intervention needed
-- ❌ **Discrepancy** - Expected behavior differs from actual
-- 🔵 **Assumed** - Input was unclear or incomplete; a best-guess decision was made (requires validation)
-
 ## Step 4: VIVIDUS Story Guidelines
 
 ### General rules
@@ -154,6 +168,63 @@ Then text `My Account` exists
 ✅ **Good** - single verification:
 ```gherkin
 When I wait until element located by `caseInsensitiveText(My Account)` appears
+```
+
+### Prefer Context + Text Assertions for UI Text Verification (Do NOT Use JavaScript Extraction)
+
+When a test case step requires verifying that any UI text matches an expected value (e.g., labels, headers, messages, list items, table cells, tooltip text, etc.):
+
+DO NOT implement it using JavaScript extraction steps (e.g., When I execute javascript ... and save result...) when the intent is to validate visible text on the page.
+
+MANDATORY RULE: Use context switching + text verification steps instead.
+
+Required sequence:
+1. Identify the smallest stable container that holds the expected text.
+2. Switch context to the PARENT element of the container identified in the previous step
+```gherkin
+When I change context to element `<locator-of-the-parent-of-the-container-with-expected-text>`
+```
+!!!Do not switch context to the container itself, as it may contain multiple child elements that split the text and cause strict locators to fail. Always switch to the parent element that encompasses the entire visible text.
+
+3. ## Verify text using text assertion steps
+
+Verify text according to how it is rendered in the UI.
+
+### When the expected text is contained within a single element (not split across multiple elements)
+Use a strict case-sensitive locator combined with an element count assertion:
+```gherkin
+Then number of elements found by `caseSensitiveText(<expected-text>)` is equal to `1`
+```
+
+### When the expected text is split across multiple elements
+Use a regular text existence assertion:
+```gherkin
+Then text `<expected-text>` exists
+```
+Use this when the visible phrase is composed from multiple nested or adjacent DOM elements, and a single strict locator would not match correctly.
+
+### When pattern-based validation is needed
+Use regex matching:
+```gherkin
+Then text matches `<regex>`
+```
+
+Context reset rule (avoid unnecessary context switching):
+After completing a check within a context, DO NOT reset context back to the page if you are going to switch context to another element immediately after.
+
+MANDATORY RULE: Reset context back to page level only when:
+- all context-specific checks are complete, or
+- there is a valid need to interact/verify at the page level.
+
+This prevents redundant steps and keeps scenarios concise and stable.
+
+Example (verify text in a specific page area):
+```gherkin
+When I change context to element `cssSelector(div.user1-details)`
+Then text `caseSensitiveText(John Smith)` exists
+When I change context to element `cssSelector(div.user2-details)`
+Then text `caseSensitiveText(Tom Johns)` exists
+When I reset context
 ```
 
 ### Use Visual Testing for Multiple Element Verification
@@ -239,7 +310,31 @@ When I enter `${campaignName}` in field located by `xpath(//input[@placeholder='
 - ❌ Before every field on the same page (only first element needed)
 - ❌ Between consecutive actions on already-loaded elements
 
-## Step 5: Generate VIVIDUS story & Summary report
+### Prefer URL Validation for “Verify <Page> Page Is Displayed” (When URL Is Descriptive)
+
+When a test case step says “Verify <Page> page is displayed/loaded/opened”, you MUST first consider validating the page by checking the current page URL, if the URL contains a clear, stable, and reasonable page identifier (e.g., /inventory, /login, /checkout, /users).
+
+Priority Rule: URL-based validation takes precedence over element-based validation when the URL is descriptive and stable.
+
+Required sequence:
+1. Validate by URL first (preferred): Use a URL verification step if available in the discovered VIVIDUS steps
+2. Only if URL validation is not possible or URL is not descriptive, validate by waiting for a page-unique element
+
+Example (Inventory page):
+
+Preferred (URL-based):
+```gherkin
+Then `${current-page-url}` matches `.+/inventory.+`
+or
+Then `#{extractPathFromUrl(${current-page-url})}` is equal to `/inventory.html`
+```
+
+Fallback (element-based):
+```gherkin
+When I wait until element located by `cssSelector([data-test='product-sort-container'])` appears
+```
+
+## Step 5: Generate VIVIDUS story
 
 ### Output Folder Structure
 Create a new folder for each test case in project root for user review:
@@ -248,8 +343,7 @@ Create a new folder for each test case in project root for user review:
 src/main/resources/story/generated/TC-XXXXX-[TestName]/
 ├── [TestName].story          # VIVIDUS story file
 ├── test-data/                # Generated test data (images, files, etc.)
-│   └── [any required files]
-└── summary.md                # Coverage report and findings
+    └── [any required files]
 ```
 
 User will review and move story files to appropriate place after approval.
@@ -301,64 +395,7 @@ When I wait until element located by `caseInsensitiveText(Success)` appears in `
 - Use Examples tables to consolidate similar test cases with different data
 - Split complex test cases into multiple focused scenarios if needed
 
-#### File 2: Summary Report
-**Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/summary.md`
-
-Summary report structure
-
-```markdown
-# Test Case [ID] - Summary
-
-## Test Information
-- **Test Case ID**: [Test case Id]
-- **Title**: [Test case title]
-- **Execution Date**: [Date]
-- **Status**: [PASSED | PASSED WITH GAPS | FAILED]
-
-## Coverage Report
-
-| # | Test Case Step | Expected Result | Actual Result | Status | Notes |
-|---|----------------|-----------------|---------------|--------|-------|
-| 1 | [Step description] | [Expected] | [Actual observed] | ✅/⚠️/❌/🔵 | [Implementation notes or gaps] |
-| 2 | ... | ... | ... | ... | ... |
-
-**Status Legend**: ✅ Covered | ⚠️ Gap | ❌ Discrepancy | 🔵 Assumed
-
-### Coverage Summary
-- **Total Steps**: X
-- **Fully Covered**: X (✅)
-- **Gaps (Missing Steps)**: X (⚠️)
-- **Discrepancies**: X (❌)
-- **Assumed**: X (🔵)
-- **Coverage Percentage**: X%
-
-## Discrepancies Found
-
-### [Issue Title]
-- **Step #**: X
-- **Expected**: [What test case says]
-- **Actual**: [What was observed]
-- **Impact**: [High | Medium | Low]
-- **Recommendation**: [Action needed]
-
-## Missing VIVIDUS Steps
-
-List any actions that cannot be automated with available steps:
-
-| Action Needed | Workaround | Priority |
-|---------------|------------|----------|
-| [Action] | [Possible workaround or "None"] | [High/Medium/Low] |
-
-## Assumptions Made
-
-**IMPORTANT: Review all assumptions below and validate they match intended behavior.**
-
-| Step # | Original TC Instruction | Assumption Made | Rationale | Needs Validation |
-|--------|------------------------|-----------------|-----------|------------------|
-| X | [What TC said] | [What was assumed] | [Why this assumption] | ⚠️ YES |
-```
-
-#### File 3: Test Data (if needed)
+#### File 2: Test Data (if needed)
 **Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/test-data/`
 - Upload images, JSON files, or any test data generated during exploration
 - Reference in story using relative path: `test-data/[filename]`
