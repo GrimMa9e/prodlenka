@@ -2,6 +2,7 @@
 .gradle
 
 #Ignore IDE project files
+.vscode
 .settings
 .project
 .classpath
@@ -17,3 +18,8 @@ output/
 
 # macOS system files
 .DS_Store
+
+# Local MCP config
+mcp.json
+playwright-mcp.config.json
+.playwright-mcp/*
