@@ -4,9 +4,11 @@ Meta:
     @priority 2
 
 Scenario: Add item to cart, verify badge and cart contents, then remove item and verify cart is empty
+!-- Step 1: Log in
+!-- [ASSUMPTION] Credentials are provided via environment properties (variables.username, variables.password)
 When I login to web app with username `${username}` and password `${password}`
 
-!-- Step 2: Add first item (Sauce Labs Backpack) from inventory page
+!-- Step 2: Add one item (Sauce Labs Backpack) from inventory page
 When I click on element located by `cssSelector([data-test="add-to-cart-sauce-labs-backpack"])`
 
 !-- Step 3: Verify cart badge shows 1
