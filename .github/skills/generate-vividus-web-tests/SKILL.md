@@ -53,7 +53,6 @@ Use Playwright MCP to execute test cases and collect element locators for VIVIDU
 When encountering unclear steps in test cases, or when blocked the agent should:
 1. Proceed with reasonable assumption or workaround
 2. Document assumption or workaround clearly
-3. Flag for user validation in story `[ASSUMPTION]` comments
 
 Example assumptions:
 | Situation | Assumption Made |Marked As |
@@ -325,6 +324,4 @@ When I wait until element located by `caseInsensitiveText(Success)` appears in `
 
 ### Output Quality
 - [ ] Meta tags: testCaseId, feature, priority
-- [ ] Assumptions marked with `[ASSUMPTION]` comments in the story
-- [ ] Discrepancies marked with `[DISCREPANCY]` comments in the story
 - [ ] No hardcoded test data values — use variables
