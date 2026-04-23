@@ -10,7 +10,7 @@ argument-hint: 'Enter your test case...'
 2. **Execute** test cases with Playwright
 3. **Analyze** test case coverage
 4. **Explore** VIVIDUS story writing guidelines
-5. **Generate** VIVIDUS stories & Summary report
+5. **Generate** VIVIDUS stories
 
 ---
 
@@ -53,7 +53,6 @@ Use Playwright MCP to execute test cases and collect element locators for VIVIDU
 When encountering unclear steps in test cases, or when blocked the agent should:
 1. Proceed with reasonable assumption or workaround
 2. Document assumption or workaround clearly
-3. Flag for user validation in summary report
 
 Example assumptions:
 | Situation | Assumption Made |Marked As |
@@ -105,7 +104,7 @@ VIVIDUS capabilities and project discovery:
 
 ### Coverage Mapping
 
-In summary report for each test case step, assess coverage status and notes:
+For each test case step, assess coverage status and document findings in `[MISSING STEP]` or `[DISCREPANCY]` comments within the story:
 
 | TC Step | Action | Status | Notes |
 |---------|--------|--------|-------|
@@ -128,9 +127,10 @@ In summary report for each test case step, assess coverage status and notes:
 
 1. **Step Syntax:** Use exact step syntax from VIVIDUS definitions or composite steps
 2. **Locators:** Follow the **Strict Hierarchy** below to ensure stability.
-3. **Data Tables:** Use Examples blocks for parameterized scenarios
+3. **Data Tables:** Use Examples ONLY when multiple data sets (3+ rows) exist. For single test case, use inline values.
 4. **Composite Steps:** Reuse existing composite steps; propose new ones for repeated patterns
 5. **Contextual Steps:** When using parent element context, ensure child locators are relative
+6. **No Hardcoded Values:** Do NOT hardcode credentials, URLs, or any test data values (names, codes, IDs, amounts, etc.). Use variables like `${vividus.web.url}`, `${lastName}`, `${postalCode}`.
 
 ### Locator Stability Hierarchy
 When identifying elements, you **MUST** prefer locators in this order:
@@ -239,31 +239,28 @@ When I enter `${campaignName}` in field located by `xpath(//input[@placeholder='
 - ❌ Before every field on the same page (only first element needed)
 - ❌ Between consecutive actions on already-loaded elements
 
-## Step 5: Generate VIVIDUS story & Summary report
+## Step 5: Generate VIVIDUS story
 
 ### Output Folder Structure
-Create a new folder for each test case in project root for user review:
+Place all generated files directly in the web_app story folder (no subfolders):
 
 ```
-src/main/resources/story/generated/TC-XXXXX-[TestName]/
+src/main/resources/story/web_app/
 ├── [TestName].story          # VIVIDUS story file
-├── test-data/                # Generated test data (images, files, etc.)
-│   └── [any required files]
-└── summary.md                # Coverage report and findings
+└── test-data/                # Generated test data (images, files, etc.)
+    └── [any required files]
 ```
-
-User will review and move story files to appropriate place after approval.
 
 **DO NOT create:**
 - Quick start guides
 - README files
-- Additional documentation
-- Any other markdown files beyond mentioned ones
+- Summary reports
+- Any other markdown or documentation files
 
 ### Output Files
 
 #### File 1: VIVIDUS Story
-**Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/[TestName].story`
+**Location**: `src/main/resources/story/web_app/[TestName].story`
 
 ```gherkin
 Meta:
@@ -301,65 +298,8 @@ When I wait until element located by `caseInsensitiveText(Success)` appears in `
 - Use Examples tables to consolidate similar test cases with different data
 - Split complex test cases into multiple focused scenarios if needed
 
-#### File 2: Summary Report
-**Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/summary.md`
-
-Summary report structure
-
-```markdown
-# Test Case [ID] - Summary
-
-## Test Information
-- **Test Case ID**: [Test case Id]
-- **Title**: [Test case title]
-- **Execution Date**: [Date]
-- **Status**: [PASSED | PASSED WITH GAPS | FAILED]
-
-## Coverage Report
-
-| # | Test Case Step | Expected Result | Actual Result | Status | Notes |
-|---|----------------|-----------------|---------------|--------|-------|
-| 1 | [Step description] | [Expected] | [Actual observed] | ✅/⚠️/❌/🔵 | [Implementation notes or gaps] |
-| 2 | ... | ... | ... | ... | ... |
-
-**Status Legend**: ✅ Covered | ⚠️ Gap | ❌ Discrepancy | 🔵 Assumed
-
-### Coverage Summary
-- **Total Steps**: X
-- **Fully Covered**: X (✅)
-- **Gaps (Missing Steps)**: X (⚠️)
-- **Discrepancies**: X (❌)
-- **Assumed**: X (🔵)
-- **Coverage Percentage**: X%
-
-## Discrepancies Found
-
-### [Issue Title]
-- **Step #**: X
-- **Expected**: [What test case says]
-- **Actual**: [What was observed]
-- **Impact**: [High | Medium | Low]
-- **Recommendation**: [Action needed]
-
-## Missing VIVIDUS Steps
-
-List any actions that cannot be automated with available steps:
-
-| Action Needed | Workaround | Priority |
-|---------------|------------|----------|
-| [Action] | [Possible workaround or "None"] | [High/Medium/Low] |
-
-## Assumptions Made
-
-**IMPORTANT: Review all assumptions below and validate they match intended behavior.**
-
-| Step # | Original TC Instruction | Assumption Made | Rationale | Needs Validation |
-|--------|------------------------|-----------------|-----------|------------------|
-| X | [What TC said] | [What was assumed] | [Why this assumption] | ⚠️ YES |
-```
-
-#### File 3: Test Data (if needed)
-**Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/test-data/`
+#### File 2: Test Data (if needed)
+**Location**: `src/main/resources/story/web_app/test-data/`
 - Upload images, JSON files, or any test data generated during exploration
 - Reference in story using relative path: `test-data/[filename]`
 
@@ -380,12 +320,8 @@ List any actions that cannot be automated with available steps:
 
 ### Coverage
 - [ ] Every test case step mapped to VIVIDUS step(s) or marked as gap
-- [ ] Coverage percentage calculated
-- [ ] Discrepancies documented with impact and recommendations
+- [ ] Discrepancies documented in `[DISCREPANCY]` comments within the story
 
 ### Output Quality
 - [ ] Meta tags: testCaseId, feature, priority
-- [ ] Assumptions marked with `[ASSUMPTION]` comments
-- [ ] Discrepancies marked with `[DISCREPANCY]` comments
-- [ ] Items requiring validation clearly listed
-- [ ] All report sections completed
+- [ ] No hardcoded test data values — use variables
