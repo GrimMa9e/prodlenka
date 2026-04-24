@@ -6,11 +6,44 @@ argument-hint: 'Provide OpenAPI specification file path or content...'
 
 # Process Overview
 
-1. **Parse** OpenAPI specification
-2. **Select** endpoints to automate
-3. **Discover** VIVIDUS API capabilities
-4. **Design** VIVIDUS API test coverage and structure
-5. **Generate** VIVIDUS API stories
+1. **Retrieve** OpenAPI specification automatically
+2. **Parse** OpenAPI specification
+3. **Select** endpoints to automate
+4. **Discover** VIVIDUS API capabilities
+5. **Design** VIVIDUS API test coverage and structure
+6. **Generate** VIVIDUS API stories
+
+---
+
+## Step 0: Retrieve OpenAPI Specification Automatically
+
+**BEFORE creating any tests**, the OpenAPI specification must be retrieved automatically (not manually added to the prompt).
+
+### How to retrieve the specification:
+
+1. **Determine the OpenAPI URL**:
+   - Check `src/main/resources/overriding.properties` (or any relevant profile properties file) for a variable defining the OpenAPI spec URL (e.g., `openapi.url`, `swagger.url`, or similar).
+   - If such a variable exists, use its value as `OPENAPI_URL`.
+   - If no variable is found, ask the user to provide the OpenAPI spec URL before proceeding.
+
+2. **Run the prepare-openapi.sh script** to automatically download and validate the OpenAPI spec:
+   ```bash
+   ./scripts/prepare-openapi.sh [OPENAPI_URL] [OUTPUT_FILE]
+   ```
+
+   **Parameters**:
+   - `OPENAPI_URL`: URL to the OpenAPI/Swagger specification (resolved in step 1 above).
+   - `OUTPUT_FILE` (optional): Path where the spec will be saved. Defaults to `./output/openapi/latest-openapi.json`
+
+3. **Validate the output**: The script automatically validates that the downloaded file contains a valid OpenAPI/Swagger document. If validation fails, the script will abort with an error.
+
+4. **Use the retrieved specification**: The downloaded spec is now available at the output path and must be used for all subsequent test generation and validation steps.
+
+**DO NOT proceed** if:
+- The OpenAPI URL cannot be determined from properties files and the user has not provided it
+- The specification file does not exist
+- The specification cannot be parsed
+- The specification is not a valid OpenAPI 2.0 or 3.x document
 
 ---
 
@@ -63,7 +96,8 @@ Generate tests only for user-specified combinations:
 **Before choosing any steps**, plan the logical flow of the API test to ensure correctness.
 1. Identify API operations sequence (e.g., "Authenticate", "Create resource", "Retrieve resource", "Update resource", "Delete resource")
 2. Ensure request dependencies are handled (e.g., "POST user must succeed before GET user by ID", "Authentication token required before protected endpoints")
-   - When testing GET or DELETE for a resource that may not exist, include a **prerequisite POST/creation step** within the same scenario to guarantee the resource exists. Add a `!--` comment explaining the dependency (e.g., `!-- Create order first to ensure it exists for retrieval`).
+   - **CRUD sequence with story variables (preferred):** When a story covers the full CRUD lifecycle (POST → GET → PUT → DELETE) for the same resource, the POST/Create scenario must save the created resource's ID and all key generated values as **story variables**. All subsequent GET, PUT, and DELETE scenarios within the same story must reuse those story variables — they must NOT create new resources, must NOT use `!--` prerequisite comments, and must NOT re-initialise already-generated values.
+   - **Standalone prerequisite (fallback):** Only include an in-scenario prerequisite POST if the story does NOT contain a preceding create scenario (e.g. a story that tests only GET and DELETE in isolation). In that case add a `!--` comment explaining the dependency (e.g., `!-- Create order first to ensure it exists for retrieval`).
 3. Plan positive and negative scenarios:
    - **Positive**: Valid request → Expected success response (200, 201, 204)
    - **Negative**: Invalid request → Expected error response (400, 401, 403, 404, 409, 500)
@@ -85,6 +119,9 @@ Generate tests only for user-specified combinations:
 2. **Preserve exact syntax** — do not alter step parameters or structure
 3. **If a required step is NOT available** — mark as `!-- [MISSING STEP]` in story
 4. **Do not add indentation or formatting** — maintain VIVIDUS step syntax exactly as defined
+5. **NEVER use `is not equal to` as a comparison rule** — `StringComparisonRule` does not support `IS_NOT_EQUAL_TO` and will throw a runtime conversion error. Use one of these alternatives instead:
+   - To verify a field **changed to a new value**: assert the new value with `is equal to`.
+   - To verify a field or element is **absent** from the response: use `Then number of JSON elements from \`${response}\` by JSON path \`$.fieldName\` is equal to \`0\``.
 
 ---
 
@@ -97,12 +134,18 @@ Generate tests only for user-specified combinations:
 3. **Data Tables:** Use Examples blocks for parameterized API tests
 4. **Composite Steps:** Reuse existing composite steps for common API patterns
 5. **Variables:** Store and reuse response data using VIVIDUS variables
+6. **Tests must be fully re-executable and must not contain any hardcoded test data values.** Use `#{generate(...)}` expressions (e.g., `#{generate(Name.firstName)}` for a pet name, `#{generate(numerify '###')}` for a category ID) to generate dynamic data at runtime. Always save generated values to a variable **before** the request so they can be asserted in the response.
+7. **Tests must validate the response schema against the current OpenAPI specification.**
+8. **Tests must verify the values of all fields that are generated or updated during the test.** After a successful PUT or PATCH, use a GET request to retrieve the updated resource and assert that each changed field matches the expected value.
+9. **Tests must check that an object is absent after it has been deleted.** After a successful DELETE on a **persisting API**, perform a GET for the same resource ID and assert the response code is `404`.
 
 ### API Test Structure
 
 Each API test scenario should follow this pattern:
 
 1. **Setup**: Configure base URL, headers, authentication
+   - Always use variables from properties files (e.g., `${petStoreRestApi}`, `${petStoreRestApi}/pet/${petId}`) instead of hardcoding endpoint URLs
+   - Check `src/main/resources/overriding.properties` or relevant profile for variable definitions
 2. **Request**: Execute HTTP method with parameters/body
 3. **Validation**: Verify status code, response body, headers
 4. **Cleanup**: (if needed) Delete created resources
@@ -124,6 +167,28 @@ When I set request headers:
 |Authorization |Bearer ${apiKey}|
 ```
 
+### Dynamic Data Generation
+
+**Common generators:**
+
+| Data type | Expression | Example output |
+|---|---|---|
+| First name | `#{generate(Name.firstName)}` | `James` |
+| Last name | `#{generate(Name.lastName)}` | `Wilson` |
+| N-digit number string | `#{generate(Number.digits '7')}` | `3847291` |
+| Patterned number | `#{generate(numerify '###')}` | `482` |
+| Password-like string | `#{generate(Internet.password '5','10','true')}` | `aB3#x7` |
+
+Initialize story variables before the request and save the created resource ID for reuse across scenarios:
+
+```gherkin
+Given I initialize story variable `petName` with value `#{generate(Name.firstName)}`
+Given request body: {"name": "${petName}", "photoUrls": ["https://example.com/photo.jpg"], "status": "available"}
+When I execute HTTP POST request for resource with relative URL `/pet`
+Then JSON element value from `${response}` by JSON path `$.name` is equal to `${petName}`
+When I save JSON element value from `${response}` by JSON path `$.id` to story variable `petId`
+```
+
 ### Request Body Handling
 
 For POST/PUT/PATCH requests with JSON bodies:
@@ -138,15 +203,57 @@ Given request body: {"name": "Test User", "email": "test@example.com"}
 
 Always validate at minimum:
 1. **Status code**: Verify expected HTTP status
-2. **Response schema**: Check structure matches OpenAPI spec
+2. **Response schema**: Check structure matches OpenAPI spec — reference an external schema file, not an inline string
 3. **Critical fields**: Validate key response values
 
-**Example**:
+#### JSON Schema Files
+
+Store schema files under `src/main/resources/data/schemas/[ServiceName]/`:
+
+```text
+├── [resource].json          # single-object schema
+└── [resource]-list.json     # array schema for list endpoints
+```
+
+Reference using `#{loadResource(...)}` — do **not** inline schemas as strings:
 
 ```gherkin
-Then response code is equal to `200`
-Then number of JSON elements from `${response}` by JSON path `$.id` is equal to 1
-Then JSON element value from `${response}` by JSON path `$.name` is equal to `Test User`
+Then JSON `${response}` is valid against schema `#{loadResource(/data/schemas/SwaggerPetstore/pet.json)}`
+```
+
+**Example schema file** (`pet.json`):
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": { "type": "integer" },
+    "category": {
+      "type": ["object", "null"],
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": ["string", "null"] }
+      }
+    },
+    "name": { "type": "string" },
+    "photoUrls": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "status": { "type": ["string", "null"] }
+  },
+  "required": ["id", "name", "photoUrls"]
+}
 ```
 
 ### Parameterization with Examples
@@ -174,10 +281,10 @@ Create folder for generated API tests:
 
 ```text
 src/main/resources/story/generated/api/[ServiceName]/
-└── [endpoint-name].story     # VIVIDUS API story file
+└── [ServiceName].story     # VIVIDUS API story file
 ```
 
-**ServiceName**: Derive from `info.title` in the OpenAPI spec. Use PascalCase with spaces removed. Example: `"Swagger Petstore"` → `SwaggerPetstore`, `"User Management API"` → `UserManagementAPI`.
+**One endpoint → one story file:** one `.story` file per endpoint path, covering all HTTP methods. Multiple response codes stay as scenarios/examples within the same file — do not split by method, response code, or combine different paths.
 
 **DO NOT create:**
 - Summary reports
@@ -187,7 +294,7 @@ src/main/resources/story/generated/api/[ServiceName]/
 
 ### Story File Structure
 
-**Location**: `src/main/resources/story/generated/api/[ServiceName]/[endpoint-name].story`
+**Location**: `src/main/resources/story/generated/api/[ServiceName]/[ServiceName].story`
 
 **Meta Tag Guidelines for API Tests**:
 
