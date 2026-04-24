@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "id": { "type": "integer" },
+    "category": {
+      "type": ["object", "null"],
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": ["string", "null"] }
+      }
+    },
+    "name": { "type": "string" },
+    "photoUrls": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "status": { "type": ["string", "null"] }
+  },
+  "required": ["id", "name", "photoUrls"]
+}
