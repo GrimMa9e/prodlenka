@@ -18,6 +18,8 @@ argument-hint: 'Provide OpenAPI specification file path or content...'
 
 **Required Input**: OpenAPI/Swagger specification (file path or content)
 
+- Before parsing, attempt to programmatically retrieve the latest OpenAPI document (e.g., `GET /v3/api-docs`, `swagger.json`, MCP HTTP tools). Only request manual spec input if automated retrieval fails and document the attempts made.
+
 ### Parse specification and extract:
 - **Base URL**: API server address
 - **Endpoints**: All available paths
@@ -39,6 +41,8 @@ When aborting, explain what is missing and request valid OpenAPI specification.
 ## Step 2: Select Endpoints to Automate
 
 Determine which endpoints to generate tests for based on user input:
+
+- Ensure selected operations enable a full CRUD lifecycle whenever the API supports it so that deletion and post-deletion checks can be executed within the same story.
 
 ### Option A: Full Specification
 Generate tests for **all** endpoints when user requests complete coverage.
@@ -68,6 +72,7 @@ Generate tests only for user-specified combinations:
    - **Positive**: Valid request → Expected success response (200, 201, 204)
    - **Negative**: Invalid request → Expected error response (400, 401, 403, 404, 409, 500)
 4. Verify the test validates failure states correctly (e.g., 404 when resource not found, 401 when unauthorized)
+5. Ensure all generated data (IDs, emails, names, etc.) are computed dynamically (timestamps, UUIDs, random suffixes) to keep tests re-executable.
 
 ### VIVIDUS API Steps Discovery
 
@@ -77,8 +82,19 @@ Generate tests only for user-specified combinations:
    - `src/main/resources/story/**/*.story` — existing API stories
    - `src/main/resources/steps/**/*.steps` — reusable composite steps for API testing
 3. Learn from examples: HTTP methods, request/response validation, authentication patterns
+4. Locate steps that validate JSON schemas and JSON path field values to satisfy the schema/field verification requirements.
 
 ⚠️ **Priority Rule:** Composite steps from `.steps` files take precedence over basic steps returned by the VIVIDUS tool. If a composite step exists that accomplishes the same action as a basic step, always use the composite step.
+
+### Composite Step Creation Rule
+
+When generating API stories, formalize new composite steps using this process:
+1. Detect repeated adjacent step sequences (2+ steps repeated in at least 2 places).
+2. Extract such sequence into a **parameterized** composite step.
+3. Store API composite steps in `src/main/resources/steps/api/`.
+4. If composite step is endpoint-specific, the file name **must** include endpoint reference (example: `users.steps`).
+5. Replace all matched occurrences in generated stories with the composite step call.
+6. Ensure API composite steps are loadable via `engine.composite-paths` (include `steps/api/*.steps`).
 
 **Strict rules:**
 1. **ONLY use steps returned by the MCP tool matching pattern `vividus_get_all_features`** — NEVER invent, modify, or assume steps
@@ -97,6 +113,7 @@ Generate tests only for user-specified combinations:
 3. **Data Tables:** Use Examples blocks for parameterized API tests
 4. **Composite Steps:** Reuse existing composite steps for common API patterns
 5. **Variables:** Store and reuse response data using VIVIDUS variables
+6. **No hardcoded values:** Generate dynamic identifiers and timestamps for payloads, headers, and assertions so scenarios remain re-executable.
 
 ### API Test Structure
 
@@ -104,8 +121,8 @@ Each API test scenario should follow this pattern:
 
 1. **Setup**: Configure base URL, headers, authentication
 2. **Request**: Execute HTTP method with parameters/body
-3. **Validation**: Verify status code, response body, headers
-4. **Cleanup**: (if needed) Delete created resources
+3. **Validation**: Verify status code, response body, headers (including schema validation and field checks)
+4. **Cleanup**: (if needed) Delete created resources and confirm their absence via follow-up GET/list checks returning 404/empty results
 
 ### Authentication Handling
 
@@ -128,6 +145,9 @@ When I set request headers:
 
 For POST/PUT/PATCH requests with JSON bodies:
 
+Apply this rule without exceptions:
+For each body-method (POST/PUT/PATCH), always generate a `When I set request headers:` block immediately before executing that HTTP method, even if the same block already appears earlier in the scenario.
+
 ✅ **Good** - inline JSON for simple bodies:
 
 ```gherkin
@@ -140,6 +160,7 @@ Always validate at minimum:
 1. **Status code**: Verify expected HTTP status
 2. **Response schema**: Check structure matches OpenAPI spec
 3. **Critical fields**: Validate key response values
+4. **Post-deletion behavior**: Confirm the resource is absent after DELETE (expected 404/410 or empty result)
 
 **Example**:
 
@@ -190,6 +211,9 @@ src/main/resources/story/generated/api/[ServiceName]/
 **Location**: `src/main/resources/story/generated/api/[ServiceName]/[endpoint-name].story`
 
 **Meta Tag Guidelines for API Tests**:
+
+- Include CRUD flow comments to clarify dynamically generated data and dependency order.
+- Ensure DELETE scenarios contain follow-up GET/list checks that assert resource absence, aligning with the post-deletion requirement.
 
 | Tag | Format | Description |
 |-----|--------|-------------|

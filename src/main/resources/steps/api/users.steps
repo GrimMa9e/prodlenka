@@ -1,0 +1,14 @@
+Composite: When I generate and prepare Users body request
+Given I initialize scenario variable `userId` with value `#{randomInt(100000, 999999)}`
+Given I initialize scenario variable `userName` with value `#{generate(bothify 'user_####??')}`
+Given I initialize scenario variable `password` with value `#{generate(bothify 'pass_####??')}`
+When I set request headers:
+|name        |value           |
+|Content-Type|application/json|
+Given request body: {"id": ${userId}, "userName": "${userName}", "password": "${password}"}
+
+Composite: When I prepare Users body request with id `${id}` userName `${userName}` and password `${password}`
+When I set request headers:
+|name        |value           |
+|Content-Type|application/json|
+Given request body: {"id": <id>, "userName": "<userName>", "password": "<password>"}
