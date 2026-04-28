@@ -1,0 +1,13 @@
+Composite: When I create FakeRESTApiWebV1 book with title `${title}` and description `${description}` and pageCount `${pageCount}`
+When I set request headers:
+|name         |value            |
+|Content-Type |application/json |
+Given request body: {"id": 0, "title": "<title>", "description": "<description>", "pageCount": <pageCount>, "excerpt": "Test excerpt", "publishDate": "2026-01-01T00:00:00.000Z"}
+When I execute HTTP POST request for resource with URL `https://fakerestapi.azurewebsites.net/api/v1/Books`
+
+Composite: When I update FakeRESTApiWebV1 book with ID `${id}` and title `${title}` and description `${description}` and pageCount `${pageCount}`
+When I set request headers:
+|name         |value            |
+|Content-Type |application/json |
+Given request body: {"id": <id>, "title": "<title>", "description": "<description>", "pageCount": <pageCount>, "excerpt": "Updated excerpt", "publishDate": "2026-01-01T00:00:00.000Z"}
+When I execute HTTP PUT request for resource with URL `https://fakerestapi.azurewebsites.net/api/v1/Books/<id>`

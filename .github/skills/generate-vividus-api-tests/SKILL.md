@@ -18,6 +18,8 @@ argument-hint: 'Provide OpenAPI specification file path or content...'
 
 **Required Input**: OpenAPI/Swagger specification (file path or content)
 
+Before parsing, automatically fetch OpenAPI spec from provided URL using HTTP GET.
+
 ### Parse specification and extract:
 - **Base URL**: API server address
 - **Endpoints**: All available paths
@@ -95,17 +97,14 @@ Generate tests only for user-specified combinations:
 1. **Step Syntax:** Use exact step syntax from VIVIDUS definitions or composite steps
 2. **HTTP Methods:** Support GET, POST, PUT, DELETE, PATCH
 3. **Data Tables:** Use Examples blocks for parameterized API tests
-4. **Composite Steps:** Reuse existing composite steps for common API patterns
+4. **Composite Steps:** Reuse existing composite steps for common API patterns. Only create a new composite step when it groups **two or more** basic steps — never create a composite step that wraps a single basic step.
 5. **Variables:** Store and reuse response data using VIVIDUS variables
+6. **No Hardcoded Values:** Use random generators like `#{randomInt(100000, 999999)}` and `#{generate(bothify 'prefix_###??')}` for IDs and test data.
+7. **Request Headers:** Always set Content-Type: application/json before POST/PUT/PATCH requests.
 
-### API Test Structure
-
-Each API test scenario should follow this pattern:
-
-1. **Setup**: Configure base URL, headers, authentication
-2. **Request**: Execute HTTP method with parameters/body
-3. **Validation**: Verify status code, response body, headers
-4. **Cleanup**: (if needed) Delete created resources
+### CRUD Lifecycle in ONE story
+Create a single story with full CRUD cycle: POST → GET → PUT → GET → DELETE → GET
+This ensures re-executability and independence.
 
 ### Authentication Handling
 
@@ -140,6 +139,7 @@ Always validate at minimum:
 1. **Status code**: Verify expected HTTP status
 2. **Response schema**: Check structure matches OpenAPI spec
 3. **Critical fields**: Validate key response values
+4. **After DELETE**: Call GET on the deleted resource and expect a 404 or 410 response.
 
 **Example**:
 
@@ -170,12 +170,7 @@ Examples:
 
 ### Output Folder Structure
 
-Create folder for generated API tests:
-
-```text
-src/main/resources/story/generated/api/[ServiceName]/
-└── [endpoint-name].story     # VIVIDUS API story file
-```
+Create composite steps in: `src/main/resources/steps/api/[resource].steps`
 
 **ServiceName**: Derive from `info.title` in the OpenAPI spec. Use PascalCase with spaces removed. Example: `"Swagger Petstore"` → `SwaggerPetstore`, `"User Management API"` → `UserManagementAPI`.
 
@@ -187,7 +182,7 @@ src/main/resources/story/generated/api/[ServiceName]/
 
 ### Story File Structure
 
-**Location**: `src/main/resources/story/generated/api/[ServiceName]/[endpoint-name].story`
+**Location**: `src/main/resources/story/rest_api/[endpoint-name].story`
 
 **Meta Tag Guidelines for API Tests**:
 
@@ -205,3 +200,17 @@ src/main/resources/story/generated/api/[ServiceName]/
   - `/store/order/{orderId}` → `order` (ignore `{orderId}`)
   - `/pet/{petId}/uploadImage` → `uploadImage`
 - Examples: `get-inventory-200.story`, `post-order-200.story`, `get-order-404.story`
+
+---
+
+## Known API Examples
+
+### FakeRESTApi (https://fakerestapi.azurewebsites.net)
+
+Test strategy for Books:
+
+1. **GET /Books** → get list, use first existing ID (e.g. `1`)
+2. **POST /Books** → validate 200 and response body. Do NOT reuse returned ID.
+3. **GET /Books/1** → validate 200
+4. **PUT /Books/1** → validate 200
+5. **DELETE /Books/1** → validate 200
