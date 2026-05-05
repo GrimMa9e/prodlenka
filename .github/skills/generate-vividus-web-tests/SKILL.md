@@ -287,12 +287,13 @@ When I wait until element located by `caseInsensitiveText(Success)` appears in `
 Lifecycle:
 Before:
 Scope: STORY
+Examples:
 |variable1 |variable2|
 |value1    |value2   |
 
 Scenario: Input fields
-When I enter `${variable1}` in field located by `id(id1)`
-When I enter `${variable2}` in field located by `id(id2)`
+When I enter `<variable1>` in field located by `id(id1)`
+When I enter `<variable2>` in field located by `id(id2)`
 When I enter `<variable3>` in field located by `id(id3)`
 Examples:
 |variable3|

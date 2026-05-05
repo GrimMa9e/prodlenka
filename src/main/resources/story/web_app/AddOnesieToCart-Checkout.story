@@ -6,6 +6,7 @@ Meta:
 Lifecycle:
 Before:
 Scope: STORY
+Examples:
 |firstName|lastName|postalCode|
 |John     |Doe     |12345     |
 
@@ -18,9 +19,9 @@ When I wait until element located by `caseInsensitiveText(Your Cart)` appears
 Then text `Sauce Labs Onesie` exists
 When I click on element located by `cssSelector([data-test="checkout"])`
 When I wait until element located by `caseInsensitiveText(Checkout: Your Information)` appears
-When I enter `${firstName}` in field located by `cssSelector([data-test="firstName"])`
-When I enter `${lastName}` in field located by `cssSelector([data-test="lastName"])`
-When I enter `${postalCode}` in field located by `cssSelector([data-test="postalCode"])`
+When I enter `<firstName>` in field located by `cssSelector([data-test="firstName"])`
+When I enter `<lastName>` in field located by `cssSelector([data-test="lastName"])`
+When I enter `<postalCode>` in field located by `cssSelector([data-test="postalCode"])`
 When I click on element located by `cssSelector([data-test="continue"])`
 When I wait until element located by `caseInsensitiveText(Checkout: Overview)` appears
 Then text `Sauce Labs Onesie` exists
