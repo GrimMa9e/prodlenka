@@ -247,12 +247,6 @@ Meta:
     @feature [Feature]
     @priority [0|1|2|3|4]
 
-Lifecycle:
-Before:
-Scope: STORY
-|variable1 |variable2 |
-|value1    |value2    |
-
 Scenario: [Descriptive scenario name]
 [Steps using ONLY available VIVIDUS syntax]
 
@@ -283,8 +277,34 @@ When I wait until element located by `caseInsensitiveText(Success)` appears in `
 - Split complex test cases into multiple focused scenarios if needed
 
 **Variables:**
-- Do not hardcode values that can be parameterized (e.g., usernames, product names, etc.)
-- Use variables defined in the Lifecycle section or Examples tables
+- Do not hardcode values in steps. Always replace them with variables previosly initialized to keep tests reusable and maintainable.
+- Initialize variables based on their scope:
+  - If a value is reused across multiple scenarios - initialize it at Story level (Lifecycle)
+  - If a value is specific to a single scenario -  initialize it in that scenario’s Examples table
+
+✅ **Good** - define variables in Lifecycle or Examples tables and use them in steps:
+```gherkin
+Lifecycle:
+Before:
+Scope: STORY
+|variable1 |variable2|
+|value1    |value2   |
+
+Scenario: Input fields
+When I enter `${variable1}` in field located by `id(id1)`
+When I enter `${variable2}` in field located by `id(id2)`
+When I enter `<variable3>` in field located by `id(id3)`
+Examples:
+|variable3|
+|value3 |
+```
+
+❌ **Bad** - hardcoded values directly in steps, not reusable:
+```gherkin
+Scenario: Input fields
+When I enter `value1` in field located by `id(id1)`
+When I enter `value2` in field located by `id(id2)`
+```
 
 #### File 2: Summary Report
 **Location**: `src/main/resources/story/generated/TC-XXXXX-[TestName]/summary.md`
