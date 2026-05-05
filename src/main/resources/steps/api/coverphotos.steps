@@ -1,0 +1,10 @@
+Composite: When I create CoverPhoto with random data
+Given I initialize scenario variable `coverId` with value `#{generate(Number.numberBetween '5000','9999')}`
+Given I initialize scenario variable `coverBookId` with value `#{generate(Number.numberBetween '1','100')}`
+Given I initialize scenario variable `coverUrl` with value `https://placeholdit.imgix.net/~text?txtsize=33&txt=Cover+${coverId}&w=250&h=350`
+When I set request headers:
+|name        |value           |
+|Content-Type|application/json|
+Given request body: {"id": ${coverId}, "idBook": ${coverBookId}, "url": "${coverUrl}"}
+When I execute HTTP POST request for resource with URL `${api-base-url}/api/v1/CoverPhotos`
+Then response code is equal_to `200`
